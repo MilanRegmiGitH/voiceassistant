@@ -3,8 +3,13 @@ import speech_recognition as sr
 import requests
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def speak(text):
+    print(text)
     engine = pyttsx3.init()
     engine.say(text)
     engine.runAndWait()
@@ -26,7 +31,7 @@ def listen():
             return None
 
 def get_weather(city):
-    api_key = "e533079ea64cd0f3a99944e669f96f1e"
+    api_key = os.getenv("OPENWEATHER_API_KEY")
     base_url = "http://api.openweathermap.org/data/2.5/weather?"
     complete_url = f"{base_url}q={city}&appid={api_key}&units=metric"
     response = requests.get(complete_url)
@@ -45,7 +50,7 @@ def get_weather(city):
         return "City not found."
 
 def get_movie_recommendations():
-    api_key = "e62875cb06ff19cb5892360b45c1713c"
+    api_key = os.getenv("TMDB_API_KEY")
     url =  f"https://api.themoviedb.org/3/movie/popular?api_key={api_key}&language=en-US&page=1"
     response = requests.get(url)
     data = response.json()
@@ -53,7 +58,7 @@ def get_movie_recommendations():
     return recommendations
 
 def get_game_recommendations():
-    api_key = "87d36ca23c7e4c0292b1ad6463ccc21c"
+    api_key = os.getenv("RAWG_API_KEY")
     url = f"https://api.rawg.io/api/games?key={api_key}"
     response = requests.get(url)
     data = response.json()
@@ -61,8 +66,8 @@ def get_game_recommendations():
     return recommendations
 
 def get_song_recommendations():
-    client_id = "2830910abd894b2b9b2df0ffb5ca851e"
-    client_secret = "392bc937881a409f9aae35e9c8727c5e"
+    client_id = os.getenv("SPOTIPY_CLIENT_ID")
+    client_secret = os.getenv("SPOTIPY_CLIENT_SECRET")
     auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
     sp = spotipy.Spotify(auth_manager=auth_manager)
     results = sp.recommendations(seed_genres=['pop'], limit=5)
