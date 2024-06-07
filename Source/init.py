@@ -9,15 +9,20 @@ import re
 import sympy as sp
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
+from PIL import Image, ImageTk
 import os
 
 load_dotenv()
 
+# Initialize the pyttsx3 engine globally
+engine = pyttsx3.init()
+engine_lock = threading.Lock() # create a lock for the speech engine
+
 def speak(text):
-    print(text)
-    engine = pyttsx3.init()
-    engine.say(text)
-    engine.runAndWait()
+    with engine_lock: # Ensure that only one thread can access the engine at a time
+        print(text)
+        engine.say(text)
+        engine.runAndWait()
 
 def listen():
     recognizer = sr.Recognizer()
@@ -111,8 +116,6 @@ def open_application(app_name):
     else:
         speak(f"Sorry, I can't open {app_name} yet.")
 
-    
-
 def handle_command(command):
     if not command:
         return True
@@ -164,48 +167,103 @@ def handle_command(command):
             speak(search_result)
     return True
 
-# if __name__ == "__main__":
-#     speak("Hello, how can I assist you today?")
-#     active = True
-#     while active:
-#         command = listen()
-#         if command:
-#             active = handle_command(command)
-
 class AwajApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Awaj - Voice Assistant")
         self.root.geometry("400x300")
         self.is_listening = False
+        self.dark_mode = False
+        self.listening_lock = threading.Lock() # lock to manage the listening state
+        self.listening_thread = None
+
+        self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", self.dark_mode) for i in range(1, 5)]
+        self.current_frame = 0
+
+        self.animation_label = tk.Label(root)
+        self.animation_label.place_forget()
 
         self.start_button = tk.Button(root, text="Start Listening", command=self.start_listening)
-        self.start_button.pack(pady=20)
+        self.start_button.place(relx=0.5, rely=0.1, anchor="center")
 
         self.stop_button = tk.Button(root, text="Stop Listening", command=self.stop_listening)
-        self.stop_button.pack(pady=20)
+        self.stop_button.place(relx=0.5, rely=0.5, anchor="center")
+
+        self.light_image = self.load_image("./voiceassistant/assets/light_mode.png", False)
+        self.dark_image = self.load_image("./voiceassistant/assets/dark_mode.png", True)
+        self.toggle_button = tk.Button(root, image=self.light_image, command=self.toggle_dark_mode, borderwidth=0)
+        self.toggle_button.place(relx=1.0, rely=0, anchor="ne")
 
         self.output_label = tk.Label(root, text="", wraplength=300)
-        self.output_label.pack(pady=20)
-    
-    def start_listening(self):
-        self.is_listening = True
-        self.output_label.config(text="Listening....")
-        self.listen_thread = threading.Thread(target=self.listen_for_commands)
-        self.listen_thread.start()
-    
-    def stop_listening(self):
-        self.is_listening = False
-        self.output_label.config(text="Stopped Listening")
+        self.output_label.place(relx=0.5, rely=0.6, anchor="center")
 
-    def listen_for_commands(self):
-        while self.is_listening:
+    def load_image(self, path, is_dark_mode):
+        # Load the image with PIL and apply background color based on mode
+        image = Image.open(path)
+        if is_dark_mode:
+            background = Image.new('RGBA', image.size, (0, 0, 0))
+        else:
+            background = Image.new('RGBA', image.size, (255, 255, 255))
+        
+        # Paste the image on the background to apply the background color
+        background.paste(image, (0, 0), image)
+        return ImageTk.PhotoImage(background)
+
+    def toggle_dark_mode(self):
+        self.dark_mode = not self.dark_mode
+        self.update_ui_mode()
+
+    def update_ui_mode(self):
+        if self.dark_mode:
+            self.root.config(bg="black")
+            self.start_button.config(bg="black", fg="white")
+            self.stop_button.config(bg="black", fg="white")
+            self.output_label.config(bg="black", fg="white")
+            self.toggle_button.config(image=self.dark_image)
+            self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", True) for i in range(1,5)]
+        else:
+            self.root.config(bg="white")
+            self.start_button.config(bg="white", fg="black")
+            self.stop_button.config(bg="white", fg="black")
+            self.output_label.config(bg="white", fg="black")
+            self.toggle_button.config(image=self.light_image)
+            self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", False) for i in range(1, 5)]
+
+    def start_listening(self):
+        with self.listening_lock:
+            # if self.is_listening:
+            #     return
+            self.is_listening = True
+            self.animation_label.place(relx=0.5, rely=0.3, anchor="center")
+            self.listening_thread = threading.Thread(target=self.listen_loop)
+            self.listening_thread.start()
+
+    def stop_listening(self):
+        with self.listening_lock:
+            self.is_listening = False
+            self.animation_label.place_forget()
+            # if self.listening_thread is not None:
+            #     self.listening_thread.join() # wait for the listening thread to finish
+
+    def listen_loop(self):
+        while True:
+            with self.listening_lock:
+                if not self.is_listening:
+                    break
+            self.animate()
             command = listen()
             if command:
                 self.output_label.config(text=f"You said: {command}")
                 if not handle_command(command):
-                    self.stop_listening()
                     break
+
+    def animate(self):
+        # with self.listening_lock:
+        #     if not self.is_listening:
+        #         return # exit if not listening 
+        self.current_frame = (self.current_frame + 1) % len(self.animation_frames)
+        self.animation_label.config(image=self.animation_frames[self.current_frame])
+        self.root.after(200, self.animate)
 
 if __name__ == "__main__":
     root = tk.Tk()
