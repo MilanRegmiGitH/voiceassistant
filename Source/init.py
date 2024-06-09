@@ -18,12 +18,14 @@ load_dotenv()
 engine = pyttsx3.init()
 engine_lock = threading.Lock() # create a lock for the speech engine
 
+#function to speak using text using pyttsx3 
 def speak(text):
     with engine_lock: # Ensure that only one thread can access the engine at a time
         print(text)
         engine.say(text)
         engine.runAndWait()
 
+# Function to listen for voice commands using speech recognition
 def listen():
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
@@ -39,7 +41,8 @@ def listen():
         except sr.RequestError:
             speak("Sorry, my speech service is down.")
             return None
-
+        
+# get weather information using the openweather api key
 def get_weather(city):
     api_key = os.getenv("OPENWEATHER_API_KEY")
     base_url = "http://api.openweathermap.org/data/2.5/weather?"
@@ -59,6 +62,7 @@ def get_weather(city):
     else:
         return "City not found."
 
+#get movie recommendations using TMDB api key 
 def get_movie_recommendations():
     api_key = os.getenv("TMDB_API_KEY")
     url =  f"https://api.themoviedb.org/3/movie/popular?api_key={api_key}&language=en-US&page=1"
@@ -67,6 +71,7 @@ def get_movie_recommendations():
     recommendations = [movie['title'] for movie in data['results'][:5]]
     return recommendations
 
+#uses Rawg api key to get  game recommendations 
 def get_game_recommendations():
     api_key = os.getenv("RAWG_API_KEY")
     url = f"https://api.rawg.io/api/games?key={api_key}"
@@ -75,6 +80,7 @@ def get_game_recommendations():
     recommendations = [game['name'] for game in data['results'][:5]]
     return recommendations
 
+#Uses spotify api to get the song recommendations
 def get_song_recommendations():
     client_id = os.getenv("SPOTIPY_CLIENT_ID")
     client_secret = os.getenv("SPOTIPY_CLIENT_SECRET")
@@ -84,6 +90,7 @@ def get_song_recommendations():
     recommendations = [track['name'] for track in results['tracks']]
     return recommendations
 
+#Takes mathematical expression and returns the result using smpy 
 def evaluate_math_expression(expression):
     try:
         result = sp.sympify(expression)
@@ -91,6 +98,7 @@ def evaluate_math_expression(expression):
     except sp.SympifyError:
         return "Invalid mathematical expression"
 
+# Function to search the web using duck duck go api
 def search_web(query):
     url = f"https://api.duckduckgo.com/?q={query}&format=json"
     response = requests.get(url)
@@ -102,6 +110,7 @@ def search_web(query):
     else:
         return "I couldn't find any information on that."
 
+# Function to open application in native os
 def open_application(app_name):
     if "discord" in app_name:
         os.system(r'start "" "%LOCALAPPDATA%\Discord\Update.exe" --processStart "Discord.exe"')
@@ -170,18 +179,21 @@ def handle_command(command):
 
 class AwajApp:
     def __init__(self, root):
+        #Initialize the main window and GUI elements
         self.root = root
         self.root.title("Awaj - Voice Assistant")
         self.root.geometry("600x400")
-        self.root.minsize(600, 400)  # Set the minimum size of the window
+        self.root.minsize(600, 400)  
         self.is_listening = False
         self.dark_mode = False
         self.listening_lock = threading.Lock() # lock to manage the listening state
         self.listening_thread = None
 
+        #load animation frames for the listening animation 
         self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", self.dark_mode) for i in range(1, 5)]
         self.current_frame = 0
 
+        #Initialize gui elements
         self.animation_label = tk.Label(root)
         self.animation_label.place_forget()
 
@@ -190,7 +202,8 @@ class AwajApp:
 
         self.stop_button = tk.Button(root, text="Stop Listening", command=self.stop_listening)
         self.stop_button.place(relx=0.5, rely=0.5, anchor="center")
-
+        
+        #load images for dark and light mode toggle
         self.light_image = self.load_image("./voiceassistant/assets/light_mode.png", False)
         self.dark_image = self.load_image("./voiceassistant/assets/dark_mode.png", True)
         self.toggle_button = tk.Button(root, image=self.light_image, command=self.toggle_dark_mode, borderwidth=0)
@@ -201,6 +214,7 @@ class AwajApp:
 
         self.animate_id = None
 
+    #Function to load an image and apply background color
     def load_image(self, path, is_dark_mode):
         # Load the image with PIL and apply background color based on mode
         image = Image.open(path)
@@ -212,11 +226,13 @@ class AwajApp:
         # Paste the image on the background to apply the background color
         background.paste(image, (0, 0), image)
         return ImageTk.PhotoImage(background)
-
+    
+    #Function to toggle between dark and light mode
     def toggle_dark_mode(self):
         self.dark_mode = not self.dark_mode
         self.update_ui_mode()
 
+    #Function to update GUI elements based on dark/light mode
     def update_ui_mode(self):
         if self.dark_mode:
             self.root.config(bg="black")
@@ -224,6 +240,7 @@ class AwajApp:
             self.stop_button.config(bg="black", fg="white")
             self.output_label.config(bg="black", fg="white")
             self.toggle_button.config(image=self.dark_image)
+            #load animation frames with dark mode theme 
             self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", True) for i in range(1, 5)]
         else:
             self.root.config(bg="white")
@@ -231,8 +248,10 @@ class AwajApp:
             self.stop_button.config(bg="white", fg="black")
             self.output_label.config(bg="white", fg="black")
             self.toggle_button.config(image=self.light_image)
+            #load animation frames with light mode theme 
             self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", False) for i in range(1, 5)]
 
+    # Function to start listening for voice commands
     def start_listening(self):
         with self.listening_lock:
             if self.is_listening:
@@ -243,6 +262,7 @@ class AwajApp:
             self.listening_thread = threading.Thread(target=self.listen_loop)
             self.listening_thread.start()
 
+    #Funtion to stop listening for voice commands
     def stop_listening(self):
         with self.listening_lock:
             self.is_listening = False
@@ -250,7 +270,7 @@ class AwajApp:
             if self.animate_id is not None:
                 self.root.after_cancel(self.animate_id)
                 self.animate_id = None
-
+    # Function to continuously listen for voice commands
     def listen_loop(self):
         while True:
             with self.listening_lock:
@@ -261,7 +281,7 @@ class AwajApp:
                 self.output_label.config(text=f"You said: {command}")
                 if not handle_command(command):
                     break
-
+    # Function to animate the listening animation
     def animate(self):
         if not self.is_listening:
             return
