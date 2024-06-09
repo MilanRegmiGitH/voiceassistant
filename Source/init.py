@@ -167,11 +167,13 @@ def handle_command(command):
             speak(search_result)
     return True
 
+
 class AwajApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Awaj - Voice Assistant")
-        self.root.geometry("400x300")
+        self.root.geometry("600x400")
+        self.root.minsize(600, 400)  # Set the minimum size of the window
         self.is_listening = False
         self.dark_mode = False
         self.listening_lock = threading.Lock() # lock to manage the listening state
@@ -197,6 +199,8 @@ class AwajApp:
         self.output_label = tk.Label(root, text="", wraplength=300)
         self.output_label.place(relx=0.5, rely=0.6, anchor="center")
 
+        self.animate_id = None
+
     def load_image(self, path, is_dark_mode):
         # Load the image with PIL and apply background color based on mode
         image = Image.open(path)
@@ -220,7 +224,7 @@ class AwajApp:
             self.stop_button.config(bg="black", fg="white")
             self.output_label.config(bg="black", fg="white")
             self.toggle_button.config(image=self.dark_image)
-            self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", True) for i in range(1,5)]
+            self.animation_frames = [self.load_image(f"./voiceassistant/assets/animation/frame_{i}.png", True) for i in range(1, 5)]
         else:
             self.root.config(bg="white")
             self.start_button.config(bg="white", fg="black")
@@ -231,10 +235,11 @@ class AwajApp:
 
     def start_listening(self):
         with self.listening_lock:
-            # if self.is_listening:
-            #     return
+            if self.is_listening:
+                return
             self.is_listening = True
             self.animation_label.place(relx=0.5, rely=0.3, anchor="center")
+            self.animate()  # Start the animation
             self.listening_thread = threading.Thread(target=self.listen_loop)
             self.listening_thread.start()
 
@@ -242,15 +247,15 @@ class AwajApp:
         with self.listening_lock:
             self.is_listening = False
             self.animation_label.place_forget()
-            # if self.listening_thread is not None:
-            #     self.listening_thread.join() # wait for the listening thread to finish
+            if self.animate_id is not None:
+                self.root.after_cancel(self.animate_id)
+                self.animate_id = None
 
     def listen_loop(self):
         while True:
             with self.listening_lock:
                 if not self.is_listening:
                     break
-            self.animate()
             command = listen()
             if command:
                 self.output_label.config(text=f"You said: {command}")
@@ -258,12 +263,12 @@ class AwajApp:
                     break
 
     def animate(self):
-        # with self.listening_lock:
-        #     if not self.is_listening:
-        #         return # exit if not listening 
+        if not self.is_listening:
+            return
         self.current_frame = (self.current_frame + 1) % len(self.animation_frames)
         self.animation_label.config(image=self.animation_frames[self.current_frame])
-        self.root.after(200, self.animate)
+        self.animate_id = self.root.after(200, self.animate)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
