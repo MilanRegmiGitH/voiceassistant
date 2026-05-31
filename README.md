@@ -7,9 +7,9 @@ cd voice_assitant
 2. create virtual environment
 python3 -m venv voice_assistant_env
 3. Activate the virtual environment
- ** On windows
+   # On windows
     voice_assistant_env\Scripts\activate
- ** on linux and mac
+   # on linux and mac
     source voice_assistant_env/bin/activate
 4. Install dependecies
     pip install -r requirements.txt
