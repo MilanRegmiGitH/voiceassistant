@@ -1,7 +1,7 @@
 # voiceassistant
 A simple voice assistant using pyttsx3 library.
 
-1. ** Clone the repo
+1. Clone the repo
 git clone https://github.com/MilanRegmiGitH/voiceassistant
 cd voice_assitant
 2. create virtual environment
